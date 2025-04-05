@@ -2,11 +2,20 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Simple Dino Game</title>
+  <title> Dino Game Raghrrrr</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    canvas { display: block; background: #e0f7fa; width: 100vw; height: 100vh; }
+    html, body { overflow: hidden; }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: #e0f7fa;
+      transition: background 0.5s ease;
+    }
+
     #cheatBtn {
       position: absolute;
       left: 20px;
@@ -19,14 +28,32 @@
       font-size: 16px;
       cursor: pointer;
       z-index: 10;
+      transition: background 0.4s ease, transform 0.2s ease;
+    }
+
+    #cheatBtn.active {
+      background: #81c784;
+      transform: scale(1.05);
+    }
+
+    #copyright {
+      position: absolute;
+      bottom: 10px;
+      left: 20px;
+      font-size: 12px;
+      color: #555;
+      z-index: 5;
     }
   </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 <button id="cheatBtn">Cheat: OFF</button>
+<div id="copyright">© Bayuuu 2025  || Support: studioofficialridho</div>
+
 <audio id="bgm" src="https://actions.google.com/sounds/v1/ambiences/birds_in_forest.ogg" loop></audio>
 <audio id="jumpSound" src="https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg"></audio>
+<audio id="gameOverSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
 
 <script>
 const canvas = document.getElementById("game");
@@ -35,6 +62,8 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 let ground = canvas.height - 50;
+let cheatMode = false;
+let obstacleSpeed = 6;
 
 let char = {
   x: canvas.width / 4,
@@ -53,12 +82,20 @@ let score = 0;
 let highscore = parseInt(localStorage.getItem("highscore")) || 0;
 let gameOver = false;
 let frame = 0;
-let cheatMode = false;
 
 const bgm = document.getElementById("bgm");
 const jumpSound = document.getElementById("jumpSound");
+const gameOverSound = document.getElementById("gameOverSound");
+
+let jumpLocked = false;
+let inputActive = false;
+
+function updateSpeed() {
+  obstacleSpeed = cheatMode ? 10 : 6;
+}
 
 function resetGame() {
+  updateSpeed();
   score = 0;
   frame = 0;
   obstacles.length = 0;
@@ -76,7 +113,7 @@ function spawnObstacle() {
     y: ground - 40,
     width: 40,
     height: 40,
-    speed: 6
+    speed: obstacleSpeed
   });
 }
 
@@ -105,7 +142,9 @@ function drawObstacles() {
 }
 
 function updateObstacles() {
+  updateSpeed();
   for (let obs of obstacles) {
+    obs.speed = obstacleSpeed;
     obs.x -= obs.speed;
   }
   obstacles = obstacles.filter(o => o.x + o.width > 0);
@@ -122,10 +161,10 @@ function checkCollision() {
         highscore = score;
         localStorage.setItem("highscore", highscore);
       }
+      gameOverSound.play();
       gameOver = true;
       setTimeout(() => {
         resetGame();
-        loop();
       }, 1000);
     }
   }
@@ -163,40 +202,66 @@ function loop() {
 }
 
 function jump() {
-  if (!char.isJumping && !gameOver) {
-    char.isDucking = false;
-    char.vy = char.jumpPower;
-    char.isJumping = true;
-    jumpSound.currentTime = 0;
-    jumpSound.play();
-  }
+  char.isDucking = false;
+  char.vy = char.jumpPower;
+  char.isJumping = true;
+  jumpSound.currentTime = 0;
+  jumpSound.play();
 }
 
 function duck(state) {
   if (!gameOver) char.isDucking = state;
 }
 
+// Input handler - no double jump
+function tryJump() {
+  if (!jumpLocked && !char.isJumping && !gameOver) {
+    jump();
+    jumpLocked = true;
+    inputActive = true;
+  }
+}
+
+function releaseJump() {
+  jumpLocked = false;
+  inputActive = false;
+}
+
+// Event listeners
 window.addEventListener("keydown", e => {
-  if (e.code === "ArrowUp" || e.code === "Space") jump();
+  if ((e.code === "Space" || e.code === "ArrowUp") && !inputActive) tryJump();
   if (e.code === "ArrowDown") duck(true);
 });
+
 window.addEventListener("keyup", e => {
   if (e.code === "ArrowDown") duck(false);
+  if (e.code === "Space" || e.code === "ArrowUp") releaseJump();
 });
 
-canvas.addEventListener("touchstart", e => {
-  if (e.touches[0].clientY < canvas.height / 2) jump();
-  else duck(true);
+window.addEventListener("mousedown", () => {
+  if (!inputActive) tryJump();
 });
-canvas.addEventListener("touchend", e => duck(false));
+window.addEventListener("mouseup", releaseJump);
 
+window.addEventListener("touchstart", () => {
+  if (!inputActive) tryJump();
+});
+window.addEventListener("touchend", () => {
+  duck(false);
+  releaseJump();
+});
+
+// Cheat button
 document.getElementById("cheatBtn").addEventListener("click", () => {
   cheatMode = !cheatMode;
   const btn = document.getElementById("cheatBtn");
   btn.textContent = `Cheat: ${cheatMode ? 'ON' : 'OFF'}`;
-  btn.style.background = cheatMode ? '#81c784' : '#ffca28';
+  btn.classList.toggle("active", cheatMode);
+  canvas.style.background = cheatMode ? "#f3e5f5" : "#e0f7fa";
+  updateSpeed();
 });
 
+// Resize
 window.addEventListener('resize', () => {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -204,10 +269,10 @@ window.addEventListener('resize', () => {
   char.y = ground - char.height;
 });
 
+// Start
 resetGame();
 bgm.volume = 0.2;
 bgm.play().catch(() => {
-  // Autoplay policy: play on first user interaction
   canvas.addEventListener('click', () => bgm.play(), { once: true });
 });
 loop();
