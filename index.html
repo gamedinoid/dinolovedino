@@ -1,238 +1,281 @@
 <!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Game Sambung Ayat Al-Qur'an</title>
+  <meta charset="UTF-8">
+  <title> Dino Game Raghrrrr</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f3f4f6;
-      text-align: center;
-      padding: 2rem;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { overflow: hidden; }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: #e0f7fa;
+      transition: background 0.5s ease;
     }
-    .card {
-      background: white;
-      border-radius: 1rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      padding: 2rem;
-      max-width: 600px;
-      margin: auto;
-    }
-    .button {
-      background: #6366f1;
-      color: white;
-      padding: 1rem;
-      border-radius: 0.5rem;
-      margin: 0.5rem;
+
+    #cheatBtn {
+      position: absolute;
+      left: 20px;
+      top: 90px;
+      padding: 10px 20px;
+      background: #ffca28;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
       cursor: pointer;
-      transition: 0.3s;
+      z-index: 10;
+      transition: background 0.4s ease, transform 0.2s ease;
     }
-    .button:hover {
-      background: #4f46e5;
+
+    #cheatBtn.active {
+      background: #81c784;
+      transform: scale(1.05);
     }
-    .option {
-      background: #e0e7ff;
-      padding: 1rem;
-      border-radius: 0.5rem;
-      margin: 0.5rem 0;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-    .option:hover {
-      background: #c7d2fe;
-    }
-    .feedback, .timer, .score {
-      font-size: 1rem;
-      margin-top: 1rem;
-    }
-    .timer {
-      font-weight: bold;
-      color: #dc2626;
+
+    #copyright {
+      position: absolute;
+      bottom: 10px;
+      left: 20px;
+      font-size: 12px;
+      color: #555;
+      z-index: 5;
     }
   </style>
 </head>
 <body>
+<canvas id="game"></canvas>
+<button id="cheatBtn">Cheat: OFF</button>
+<div id="copyright">© Bayuuu 2025  || Support: studioofficialridho</div>
 
-  <!-- Suara -->
-  <audio id="benarAudio" src="https://www.soundjay.com/button/beep-07.wav"></audio>
-  <audio id="salahAudio" src="https://www.soundjay.com/button/beep-10.wav"></audio>
-  <audio id="selesaiAudio" src="https://www.soundjay.com/misc/small-bell-ring-01a.mp3"></audio>
+<audio id="bgm" src="https://actions.google.com/sounds/v1/ambiences/birds_in_forest.ogg" loop></audio>
+<audio id="jumpSound" src="https://actions.google.com/sounds/v1/cartoon/cartoon_boing.ogg"></audio>
+<audio id="gameOverSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
 
-  <!-- Pilih Jenis Mode -->
-  <div class="card" id="selectMode">
-    <h1>Game Sambung Ayat</h1>
-    <p>Pilih Jenis Permainan:</p>
-    <div class="button" onclick="setGameType('individu')">Mode Individu</div>
-    <div class="button" onclick="setGameType('vs')">Mode VS (2 Pemain)</div>
-  </div>
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-  <!-- Pilih Level -->
-  <div class="card" id="selectLevel" style="display:none">
-    <h2>Pilih Tingkat Kesulitan:</h2>
-    <div class="button" onclick="startGame('mudah')">Mudah</div>
-    <div class="button" onclick="startGame('sedang')">Sedang</div>
-    <div class="button" onclick="startGame('payah')">Payah</div>
-  </div>
+let ground = canvas.height - 50;
+let cheatMode = false;
+let obstacleSpeed = 6;
 
-  <!-- Tampilan Game -->
-  <div class="card" id="game" style="display:none">
-    <h2 id="mode-title"></h2>
-    <p id="player-turn"></p>
-    <div class="question" id="question"></div>
-    <div id="options"></div>
-    <div class="timer" id="timer">Sisa Waktu: 03:00</div>
-    <div class="feedback" id="feedback"></div>
-    <div class="score" id="score"></div>
-  </div>
+let char = {
+  x: canvas.width / 4,
+  y: ground - 50,
+  width: 50,
+  height: 50,
+  vy: 0,
+  gravity: 1.2,
+  jumpPower: -18,
+  isJumping: false,
+  isDucking: false
+};
 
-  <script>
-    const questionSets = {
-      mudah: [
-        { soal: "الۤمّۤۚ",
-        options: ["ذَٰلِكَ الْكِتَابُ لَا رَيْبَ ۛ فِيهِ", "Iyyaka na’budu wa iyyaka nasta’iin"], answer: 0 },
-        { soal: "Qul a’udzu birabbinnas...", options: ["Malikin naas...", "Allahu shamad...", "Ihdinash shirathal mustaqiim..."], answer: 0 }
-      ],
-      sedang: [
-        { soal: "Wal‘aṣri...", 
-        options: ["Innal insaana lafii khusr...", "Fasholli li rabbika wanhar...", "Qul a’udzu birobbil falaq..."], answer: 0 },
-        { soal: "Inna a’tainaa kal kawtsar...", options: ["Fasholli li rabbika wanhar...", "Alladzii waswisu fii shuduurinnas...", "Qul huwallahu ahad..."], answer: 0 }
-      ],
-      payah: [
-        { soal: "Alladziina yu’minuuna bilghaib...", options: ["Wa yuqiimuunash shalaah...", "Qul a’udzu birobbil falaq...", "Allahu shamad..."], answer: 0 },
-        { soal: "Yaa ayyuhal ladziina aamanuu...", options: ["Kutiba ‘alaikumush shiyaam...", "Maliki yaumid diin...", "Alladzii waswisa fii shuduurinnas..."], answer: 0 }
-      ]
-    };
+let obstacles = [];
+let score = 0;
+let highscore = parseInt(localStorage.getItem("highscore")) || 0;
+let gameOver = false;
+let frame = 0;
 
-    let gameType = 'individu';
-    let current = 0;
-    let currentQuestions = [];
-    let players = ["Pemain 1", "Pemain 2"];
-    let scores = [0, 0];
-    let currentPlayer = 0;
-    let timeLeft = 180;
-    let timerInterval;
+const bgm = document.getElementById("bgm");
+const jumpSound = document.getElementById("jumpSound");
+const gameOverSound = document.getElementById("gameOverSound");
 
-    function setGameType(type) {
-      gameType = type;
-      document.getElementById("selectMode").style.display = "none";
-      document.getElementById("selectLevel").style.display = "block";
-    }
+let jumpLocked = false;
+let inputActive = false;
 
-    function startGame(mode) {
-      document.getElementById("selectLevel").style.display = "none";
-      document.getElementById("game").style.display = "block";
-      document.getElementById("mode-title").innerText = `Mode ${mode.charAt(0).toUpperCase() + mode.slice(1)} - ${gameType === 'vs' ? "2 Pemain" : "Individu"}`;
-      currentQuestions = questionSets[mode];
-      current = 0;
-      scores = [0, 0];
-      currentPlayer = 0;
-      timeLeft = 180;
-      startTimer();
-      showQuestion();
-    }
+function updateSpeed() {
+  obstacleSpeed = cheatMode ? 10 : 6;
+}
 
-    function startTimer() {
-      updateTimerDisplay();
-      timerInterval = setInterval(() => {
-        timeLeft--;
-        updateTimerDisplay();
-        if (timeLeft <= 0) {
-          clearInterval(timerInterval);
-          endGame(true);
-        }
+function resetGame() {
+  updateSpeed();
+  score = 0;
+  frame = 0;
+  obstacles.length = 0;
+  ground = canvas.height - 50;
+  char.y = ground - char.height;
+  char.vy = 0;
+  char.isJumping = false;
+  char.isDucking = false;
+  gameOver = false;
+}
+
+function spawnObstacle() {
+  obstacles.push({
+    x: canvas.width,
+    y: ground - 40,
+    width: 40,
+    height: 40,
+    speed: obstacleSpeed
+  });
+}
+
+function drawChar() {
+  ctx.fillStyle = "#2e7d32";
+  let h = char.isDucking ? char.height / 2 : char.height;
+  let yOffset = char.isDucking ? char.height / 2 : 0;
+  ctx.fillRect(char.x, char.y + yOffset, char.width, h);
+}
+
+function updateChar() {
+  char.vy += char.gravity;
+  char.y += char.vy;
+  if (char.y > ground - char.height) {
+    char.y = ground - char.height;
+    char.vy = 0;
+    char.isJumping = false;
+  }
+}
+
+function drawObstacles() {
+  ctx.fillStyle = "#6d4c41";
+  for (let obs of obstacles) {
+    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+  }
+}
+
+function updateObstacles() {
+  updateSpeed();
+  for (let obs of obstacles) {
+    obs.speed = obstacleSpeed;
+    obs.x -= obs.speed;
+  }
+  obstacles = obstacles.filter(o => o.x + o.width > 0);
+}
+
+function checkCollision() {
+  if (cheatMode) return;
+  let h = char.isDucking ? char.height / 2 : char.height;
+  for (let obs of obstacles) {
+    if (char.x < obs.x + obs.width &&
+        char.x + char.width > obs.x &&
+        char.y + h > obs.y) {
+      if (score > highscore) {
+        highscore = score;
+        localStorage.setItem("highscore", highscore);
+      }
+      gameOverSound.play();
+      gameOver = true;
+      setTimeout(() => {
+        resetGame();
       }, 1000);
     }
+  }
+}
 
-    function updateTimerDisplay() {
-      const minutes = String(Math.floor(timeLeft / 60)).padStart(2, '0');
-      const seconds = String(timeLeft % 60).padStart(2, '0');
-      document.getElementById("timer").innerText = `Sisa Waktu: ${minutes}:${seconds}`;
-    }
+function drawScore() {
+  ctx.fillStyle = "#000";
+  ctx.font = "20px Arial";
+  ctx.fillText("Score: " + score, 20, 30);
+  ctx.fillText("Highscore: " + highscore, 20, 60);
+}
 
-    function showQuestion() {
-      const q = currentQuestions[current];
-      document.getElementById("question").innerText = q.soal;
-      document.getElementById("player-turn").innerText = gameType === 'vs' ? `Giliran: ${players[currentPlayer]}` : "";
-      document.getElementById("options").innerHTML = "";
-      document.getElementById("feedback").innerText = "";
+function drawGround() {
+  ctx.fillStyle = "#a1887f";
+  ctx.fillRect(0, ground, canvas.width, 5);
+}
 
-      q.options.forEach((opt, idx) => {
-        const btn = document.createElement("div");
-        btn.className = "option";
-        btn.innerText = opt;
-        btn.onclick = () => checkAnswer(idx);
-        document.getElementById("options").appendChild(btn);
-      });
+function loop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawGround();
+  drawChar();
+  drawObstacles();
+  drawScore();
 
-      document.getElementById("score").innerText =
-        gameType === 'vs' ? `${players[0]}: ${scores[0]} | ${players[1]}: ${scores[1]}` : `Skor: ${scores[0]}`;
-    }
+  if (!gameOver) {
+    frame++;
+    updateChar();
+    updateObstacles();
+    if (frame % 100 === 0) spawnObstacle();
+    checkCollision();
+    score++;
+  }
 
-    function checkAnswer(selected) {
-      const correct = currentQuestions[current].answer;
-      const feedback = document.getElementById("feedback");
+  requestAnimationFrame(loop);
+}
 
-      if (selected === correct) {
-        document.getElementById("benarAudio").play();
-        feedback.style.color = "#16a34a";
-        feedback.innerText = "Jawaban benar!";
-        scores[currentPlayer] += 10;
-      } else {
-        document.getElementById("salahAudio").play();
-        feedback.style.color = "#dc2626";
-        feedback.innerText = "Maaf, salah.";
-      }
+function jump() {
+  char.isDucking = false;
+  char.vy = char.jumpPower;
+  char.isJumping = true;
+  jumpSound.currentTime = 0;
+  jumpSound.play();
+}
 
-      setTimeout(() => {
-        current++;
-        if (gameType === 'vs') currentPlayer = (currentPlayer + 1) % 2;
+function duck(state) {
+  if (!gameOver) char.isDucking = state;
+}
 
-        if (current < currentQuestions.length) {
-          showQuestion();
-        } else {
-          clearInterval(timerInterval);
-          endGame(false);
-        }
-      }, 1200);
-    }
+// Input handler - no double jump
+function tryJump() {
+  if (!jumpLocked && !char.isJumping && !gameOver) {
+    jump();
+    jumpLocked = true;
+    inputActive = true;
+  }
+}
 
-    function endGame(waktuHabis) {
-      document.getElementById("selesaiAudio").play();
-      const totalScore = scores[0] + scores[1];
-      let message = waktuHabis
-        ? "<p><strong>Waktu habis!</strong></p>"
-        : "<p>Permainan selesai!</p>";
+function releaseJump() {
+  jumpLocked = false;
+  inputActive = false;
+}
 
-      let highScore = localStorage.getItem("highScore") || 0;
-      if (totalScore > highScore) {
-        localStorage.setItem("highScore", totalScore);
-      }
+// Event listeners
+window.addEventListener("keydown", e => {
+  if ((e.code === "Space" || e.code === "ArrowUp") && !inputActive) tryJump();
+  if (e.code === "ArrowDown") duck(true);
+});
 
-      let resultHTML = `
-        <h2>Hasil Akhir</h2>
-        ${message}
-        <div style="text-align:left; font-size: 1.1rem; margin: 1rem 0;">
-      `;
+window.addEventListener("keyup", e => {
+  if (e.code === "ArrowDown") duck(false);
+  if (e.code === "Space" || e.code === "ArrowUp") releaseJump();
+});
 
-      if (gameType === 'vs') {
-        resultHTML += `
-          <p><strong>${players[0]}:</strong> ${scores[0]} poin</p>
-          <p><strong>${players[1]}:</strong> ${scores[1]} poin</p>
-        `;
-      } else {
-        resultHTML += `<p><strong>Skor Anda:</strong> ${scores[0]} poin</p>`;
-      }
+window.addEventListener("mousedown", () => {
+  if (!inputActive) tryJump();
+});
+window.addEventListener("mouseup", releaseJump);
 
-      resultHTML += `
-        </div>
-        <p><strong>Total Skor:</strong> ${totalScore} poin</p>
-        <p><strong>Skor Tertinggi:</strong> ${localStorage.getItem("highScore")} poin</p>
-        <div class="button" onclick="location.reload()">Main Lagi</div>
-      `;
+window.addEventListener("touchstart", () => {
+  if (!inputActive) tryJump();
+});
+window.addEventListener("touchend", () => {
+  duck(false);
+  releaseJump();
+});
 
-      document.getElementById("game").innerHTML = resultHTML;
-    }
-  </script>
+// Cheat button
+document.getElementById("cheatBtn").addEventListener("click", () => {
+  cheatMode = !cheatMode;
+  const btn = document.getElementById("cheatBtn");
+  btn.textContent = `Cheat: ${cheatMode ? 'ON' : 'OFF'}`;
+  btn.classList.toggle("active", cheatMode);
+  canvas.style.background = cheatMode ? "#f3e5f5" : "#e0f7fa";
+  updateSpeed();
+});
+
+// Resize
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  ground = canvas.height - 50;
+  char.y = ground - char.height;
+});
+
+// Start
+resetGame();
+bgm.volume = 0.2;
+bgm.play().catch(() => {
+  canvas.addEventListener('click', () => bgm.play(), { once: true });
+});
+loop();
+</script>
 </body>
 </html>
